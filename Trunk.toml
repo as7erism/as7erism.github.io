@@ -1,0 +1,4 @@
+[[hooks]]
+stage = "post_build"
+command = "sh"
+command_arguments = ["-c", "npx @tailwindcss/cli -i ./input.css -o $TRUNK_STAGING_DIR/output.css"]

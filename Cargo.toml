@@ -1,0 +1,8 @@
+[package]
+name = "site"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+web-sys = "0.3.77"
+yew = { version = "0.21.0", features = ["csr"] }
