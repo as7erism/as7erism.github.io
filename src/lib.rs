@@ -92,11 +92,11 @@ impl FsTree {
         }
     }
 
-    fn get_node(&self, entry: &DirEntry) -> &FsNode {
+    fn get_node(&self, entry: DirEntry) -> &FsNode {
         &self.node_table[entry.0]
     }
 
-    fn get_node_mut(&mut self, entry: &DirEntry) -> &mut FsNode {
+    fn get_node_mut(&mut self, entry: DirEntry) -> &mut FsNode {
         &mut self.node_table[entry.0]
     }
 
@@ -113,23 +113,37 @@ impl FsTree {
             return Err(CannotDeleteRoot);
         }
 
-        Ok(self.do_delete(entry))
-    }
-
-    fn do_delete(&mut self, entry: DirEntry) {
-        let node = self.get_node(&entry);
+        let node = self.get_node(entry);
         match node {
             FsNode::File(f) => {
-                match self.get_node_mut(&f.parent()) {
+                match self.get_node_mut(f.parent()) {
                     FsNode::Directory(d) => d.remove_entry(entry),
                     FsNode::File(_) => panic!("parent was a file!"),
                 };
             },
-            FsNode::Directory(d) => {
-                for entry in d.entries.iter() {
-                    self.do_delete(*entry);
+            FsNode::Directory(_) => {
+                let mut entries = vec![];
+                self.collect_entries(entry, &mut entries); 
+                for entry in entries.into_iter().rev() {
+                    if let FsNode::Directory(d) = self.get_node_mut(entry) {
+                        d.entries.clear();
+                    }
+                    self.vacate(entry);
                 }
+
+
             },
         };
+
+        Ok(())
+    }
+
+    fn collect_entries<'a>(&self, current: DirEntry, entries: &'a mut Vec<DirEntry>) {
+        entries.push(current);
+        if let FsNode::Directory(d) = self.get_node(current) {
+            for entry in d.entries.iter() {
+                self.collect_entries(*entry, entries);
+            }
+        }
     }
 }
