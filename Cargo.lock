@@ -888,6 +888,8 @@ dependencies = [
 name = "site"
 version = "0.1.0"
 dependencies = [
+ "serde",
+ "wasm-bindgen",
  "web-sys",
  "yew",
 ]

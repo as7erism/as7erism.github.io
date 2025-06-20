@@ -1,11 +1,10 @@
-use std::{
-    cell::RefCell,
-    ops::Deref,
-    rc::{Rc, Weak},
-};
-
-use web_sys::{EventTarget, HtmlInputElement, wasm_bindgen::JsCast};
+use web_sys::wasm_bindgen::prelude::*;
 use yew::prelude::*;
+
+#[wasm_bindgen]
+extern "C" {
+    fn eval(s: &str);
+}
 
 #[function_component]
 fn Ash() -> Html {
@@ -16,13 +15,14 @@ fn Ash() -> Html {
     });
 
     let onclick = {
-        let history = (*history_handle).clone();
-        Callback::from(move |_| {
-            let mut updated = history.clone();
+        let history = history_handle.clone();
+        Callback::from(move |_: MouseEvent| {
+            eval("console.log('hi');");
+            let mut updated = history.to_vec();
             updated.push(html! {
                 <p>{"waa"}</p>
             });
-            history_handle.set(updated);
+            history.set(updated);
         })
     };
 
@@ -30,12 +30,11 @@ fn Ash() -> Html {
         <div>
             { for history_handle.to_vec() }
             {"❁~"}<input />
+            <button onclick={onclick} class={classes!("bg-sky-500")}>
+                {"yay"}
+            </button>
         </div>
     }
-}
-
-fn tab_complete<'a>(value: &str, program_names: impl IntoIterator<Item = &'a str>) {
-    unimplemented!()
 }
 
 fn main() {

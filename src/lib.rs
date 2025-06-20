@@ -1,40 +1,33 @@
 use core::panic;
-use std::rc::Rc;
+use std::{collections::HashMap, mem, rc::Rc};
 
-#[derive(Default)]
 struct Directory {
-    name: Rc<str>,
-    parent: Option<DirEntry>,
-    entries: Vec<DirEntry>,
+    entries: HashMap<Box<str>, FsNodeIndex>,
 }
 
 #[derive(Default)]
 struct File {
-    name: Rc<str>,
-    parent: DirEntry,
+    contents: String,
 }
 
 impl Directory {
-    pub fn new() -> Self {
+    pub fn new_root() -> Self {
         Default::default()
     }
 
-    fn remove_entry(&mut self, entry: DirEntry) -> Option<()> {
-        let (index, _) = self
-            .entries
-            .iter()
-            .enumerate()
-            .find(|(_, e)| **e == entry)?;
-        self.entries.swap_remove(index);
-        Some(())
+    fn remove_entry(&mut self, name: &str) -> Option<FsNodeIndex> {
+        self.entries.remove(name)
     }
+}
 
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    pub fn parent(&self) -> Option<DirEntry> {
-        self.parent
+impl Default for Directory {
+    fn default() -> Self {
+        Self {
+            entries: HashMap::from([
+                ("..".into(), FsNodeIndex(0)),
+                (".".into(), FsNodeIndex(0))
+            ]),
+        }
     }
 }
 
@@ -43,12 +36,12 @@ impl File {
         Default::default()
     }
 
-    pub fn name(&self) -> &str {
-        &self.name
+    pub fn contents_mut(&mut self) -> &mut String {
+        &mut self.contents
     }
 
-    pub fn parent(&self) -> DirEntry {
-        self.parent
+    pub fn contents(&self) -> &str {
+        self.contents.as_str()
     }
 }
 
@@ -57,24 +50,8 @@ enum FsNode {
     File(File),
 }
 
-impl FsNode {
-    pub fn name(&self) -> &str {
-        match self {
-            Self::File(f) => f.name(),
-            Self::Directory(d) => d.name(),
-        }
-    }
-
-    pub fn parent(&self) -> Option<DirEntry> {
-        match self {
-            Self::File(f) => Some(f.parent()),
-            Self::Directory(d) => d.parent(),
-        }
-    }
-}
-
 #[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
-struct DirEntry(usize);
+struct FsNodeIndex(usize);
 
 struct CannotDeleteDirectory;
 struct CannotDeleteRoot;
@@ -92,26 +69,37 @@ impl FsTree {
         }
     }
 
-    fn get_node(&self, entry: DirEntry) -> &FsNode {
+    fn get_node(&self, entry: FsNodeIndex) -> &FsNode {
         &self.node_table[entry.0]
     }
 
-    fn get_node_mut(&mut self, entry: DirEntry) -> &mut FsNode {
+    fn get_node_mut(&mut self, entry: FsNodeIndex) -> &mut FsNode {
         &mut self.node_table[entry.0]
     }
 
-    pub fn root(&self) -> DirEntry {
-        DirEntry(0)
+    pub fn root(&self) -> FsNodeIndex {
+        FsNodeIndex(0)
     }
 
-    pub fn vacate(&mut self, entry: DirEntry) {
+    fn vacate(&mut self, entry: FsNodeIndex) {
         self.vacancies.push(entry.0)
     }
 
-    pub fn delete_recursive(&mut self, entry: DirEntry) -> Result<(), CannotDeleteRoot> {
-        if entry == self.root() {
-            return Err(CannotDeleteRoot);
+    fn is_child(&self, maybe_child: FsNodeIndex, maybe_parent: FsNodeIndex) -> bool {
+        unimplemented!()
+    }
+
+    pub fn move_entry(&mut self, entry: FsNodeIndex, new_parent: FsNodeIndex, new_name: &str) -> Result<(), ()> {
+        if self.is_child(new_parent, entry) {
+            return Err(());
         }
+        Ok(())
+    }
+
+    pub fn delete_recursive(&mut self, name: &str, parent: FsNodeIndex) -> Result<(), CannotDeleteRoot> {
+        let FsNode::Directory(parent_dir) = self.get_node_mut(parent) else {
+            panic!();
+        };
 
         let node = self.get_node(entry);
         match node {
@@ -138,10 +126,10 @@ impl FsTree {
         Ok(())
     }
 
-    fn collect_entries<'a>(&self, current: DirEntry, entries: &'a mut Vec<DirEntry>) {
+    fn collect_entries<'a>(&self, current: FsNodeIndex, entries: &'a mut Vec<FsNodeIndex>) {
         entries.push(current);
         if let FsNode::Directory(d) = self.get_node(current) {
-            for entry in d.entries.iter() {
+            for entry in d.entries.values() {
                 self.collect_entries(*entry, entries);
             }
         }
