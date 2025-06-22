@@ -1,8 +1,15 @@
 use core::panic;
 use std::{collections::HashMap, mem, rc::Rc};
 
+use thiserror::Error;
+
 struct Directory {
-    entries: HashMap<Box<str>, FsNodeIndex>,
+    entries: HashMap<Rc<str>, FsNodeIndex>,
+}
+
+struct DirEntry {
+    name: Rc<str>,
+    index: FsNodeIndex,
 }
 
 #[derive(Default)]
@@ -18,15 +25,16 @@ impl Directory {
     fn remove_entry(&mut self, name: &str) -> Option<FsNodeIndex> {
         self.entries.remove(name)
     }
+
+    fn children(&self) -> impl Iterator<Item = DirEntry> {
+        self.entries.iter().map(|(k, v)| DirEntry {name: Rc::clone(k), index: *v})
+    }
 }
 
 impl Default for Directory {
     fn default() -> Self {
         Self {
-            entries: HashMap::from([
-                ("..".into(), FsNodeIndex(0)),
-                (".".into(), FsNodeIndex(0))
-            ]),
+            entries: HashMap::from([("..".into(), FsNodeIndex(0)), (".".into(), FsNodeIndex(0))]),
         }
     }
 }
@@ -53,8 +61,8 @@ enum FsNode {
 #[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
 struct FsNodeIndex(usize);
 
-struct CannotDeleteDirectory;
-struct CannotDeleteRoot;
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Error)]
+pub enum FsError {}
 
 struct FsTree {
     node_table: Vec<FsNode>,
@@ -89,41 +97,34 @@ impl FsTree {
         unimplemented!()
     }
 
-    pub fn move_entry(&mut self, entry: FsNodeIndex, new_parent: FsNodeIndex, new_name: &str) -> Result<(), ()> {
+    pub fn move_entry(
+        &mut self,
+        entry: FsNodeIndex,
+        new_parent: FsNodeIndex,
+        new_name: &str,
+    ) -> Result<(), ()> {
         if self.is_child(new_parent, entry) {
             return Err(());
         }
         Ok(())
     }
 
-    pub fn delete_recursive(&mut self, name: &str, parent: FsNodeIndex) -> Result<(), CannotDeleteRoot> {
-        let FsNode::Directory(parent_dir) = self.get_node_mut(parent) else {
-            panic!();
-        };
+    pub fn delete_recursive(&mut self, name: &str, parent: FsNodeIndex) -> Result<(), FsError> {
+        let node = self.get_node(parent);
 
-        let node = self.get_node(entry);
-        match node {
-            FsNode::File(f) => {
-                match self.get_node_mut(f.parent()) {
-                    FsNode::Directory(d) => d.remove_entry(entry),
-                    FsNode::File(_) => panic!("parent was a file!"),
-                };
-            },
-            FsNode::Directory(_) => {
-                let mut entries = vec![];
-                self.collect_entries(entry, &mut entries); 
-                for entry in entries.into_iter().rev() {
-                    if let FsNode::Directory(d) = self.get_node_mut(entry) {
-                        d.entries.clear();
-                    }
-                    self.vacate(entry);
-                }
-
-
-            },
-        };
+        if let FsNode::Directory(d) = self.get_node_mut(*parent.entries.get(name).unwrap()) {
+            let names = d.entries.keys().map(|n| Rc::clone(n)).collect::<Vec<_>>();
+            for name in names {
+                self.delete_recursive(&name, parent);
+            }
+        }
+        self.vacate(parent.remove_entry(name).unwrap());
 
         Ok(())
+    }
+
+    fn do_delete(&mut self, name: &str, parent: &mut Directory) {
+
     }
 
     fn collect_entries<'a>(&self, current: FsNodeIndex, entries: &'a mut Vec<FsNodeIndex>) {
