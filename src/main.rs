@@ -1,10 +1,5 @@
-use web_sys::wasm_bindgen::prelude::*;
 use yew::prelude::*;
 
-#[wasm_bindgen]
-extern "C" {
-    fn eval(s: &str);
-}
 
 #[function_component]
 fn Ash() -> Html {
@@ -17,7 +12,6 @@ fn Ash() -> Html {
     let onclick = {
         let history = history_handle.clone();
         Callback::from(move |_: MouseEvent| {
-            eval("console.log('hi');");
             let mut updated = history.to_vec();
             updated.push(html! {
                 <p>{"waa"}</p>
