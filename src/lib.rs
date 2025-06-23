@@ -1,5 +1,5 @@
 use core::panic;
-use std::{collections::HashMap, mem, rc::Rc};
+use std::{collections::HashMap, marker::PhantomData, mem, rc::Rc};
 
 use thiserror::Error;
 
@@ -20,6 +20,12 @@ struct File {
 impl Directory {
     pub fn new_root() -> Self {
         Default::default()
+    }
+
+    pub fn new(parent: FsNodeIndex, this: FsNodeIndex) -> Self {
+        Self {
+            entries: HashMap::from([("..".into(), parent), (".".into(), this)]),
+        }
     }
 
     fn remove_entry(&mut self, name: &str) -> Option<FsNodeIndex> {
@@ -66,7 +72,7 @@ pub enum FsError {}
 
 struct FsTree {
     node_table: Vec<FsNode>,
-    vacancies: Vec<usize>,
+    vacancies: Vec<FsNodeIndex>,
 }
 
 impl FsTree {
@@ -90,7 +96,7 @@ impl FsTree {
     }
 
     fn vacate(&mut self, entry: FsNodeIndex) {
-        self.vacancies.push(entry.0)
+        self.vacancies.push(entry)
     }
 
     fn is_child(&self, maybe_child: FsNodeIndex, maybe_parent: FsNodeIndex) -> bool {
@@ -109,30 +115,69 @@ impl FsTree {
         Ok(())
     }
 
-    pub fn delete_recursive(&mut self, name: &str, parent: FsNodeIndex) -> Result<(), FsError> {
-        let node = self.get_node(parent);
+    pub fn create_file(&mut self, name: &str, parent: FsNodeIndex) -> Result<(), FsError> {
+        let vacancy = self.vacancies.last().cloned();
+        let table_len = self.node_table.len();
 
-        if let FsNode::Directory(d) = self.get_node_mut(*parent.entries.get(name).unwrap()) {
-            let names = d.entries.keys().map(|n| Rc::clone(n)).collect::<Vec<_>>();
-            for name in names {
-                self.delete_recursive(&name, parent);
-            }
+        let FsNode::Directory(parent_dir) = self.get_node_mut(parent) else {
+            unimplemented!();
+        };
+
+        if parent_dir.entries.contains_key(name) {
+            unimplemented!();
         }
-        self.vacate(parent.remove_entry(name).unwrap());
+
+        match vacancy {
+            Some(v) => {
+                parent_dir.entries.insert(name.into(), v);
+                self.node_table[v.0] = FsNode::File(File::new());
+                self.vacancies.pop();
+            },
+            None => {
+                parent_dir.entries.insert(name.into(), FsNodeIndex(table_len));
+                self.node_table.push(FsNode::File(File::new()));
+            },
+        };
 
         Ok(())
     }
 
-    fn do_delete(&mut self, name: &str, parent: &mut Directory) {
+    pub fn delete(&mut self, name: &str, parent: FsNodeIndex) -> Result<(), FsError> {
+        let FsNode::Directory(parent_dir) = self.get_node_mut(parent) else {
+            unimplemented!();
+        };
 
+        let Some(removal_index) = parent_dir.remove_entry(name) else {
+            unimplemented!();
+        };
+
+        self.vacate(removal_index);
+
+        Ok(())
     }
 
-    fn collect_entries<'a>(&self, current: FsNodeIndex, entries: &'a mut Vec<FsNodeIndex>) {
-        entries.push(current);
-        if let FsNode::Directory(d) = self.get_node(current) {
-            for entry in d.entries.values() {
-                self.collect_entries(*entry, entries);
+    pub fn delete_recursive(&mut self, name: &str, parent: FsNodeIndex) -> Result<(), FsError> {
+        let FsNode::Directory(parent_dir) = self.get_node(parent) else {
+            unimplemented!();
+        };
+
+        let Some(removal_index) = parent_dir.entries.get(name).cloned() else {
+            unimplemented!();
+        };
+
+        if let FsNode::Directory(d) = self.get_node(removal_index) {
+            let names = d.entries.keys().map(Rc::clone).collect::<Vec<_>>();
+            for name in names {
+                self.delete_recursive(&name, removal_index).expect("a");
             }
         }
+
+        let FsNode::Directory(parent_dir) = self.get_node_mut(parent) else {
+            panic!();
+        };
+        parent_dir.remove_entry(name).expect("a");
+        self.vacate(removal_index);
+
+        Ok(())
     }
 }
