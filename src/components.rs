@@ -1,9 +1,6 @@
-use yew::{function_component, html, Html};
+use yew::{Html, function_component, html};
 
-#[function_component]
-pub fn ExecutionRecord() -> Html {
-    html!(<></>)
-}
+use crate::fs::{FsNodeIndex, FsTree};
 
 #[function_component]
 pub fn Prompt() -> Html {
@@ -14,3 +11,5 @@ pub fn Prompt() -> Html {
 pub fn InputLine() -> Html {
     html!(<></>)
 }
+
+fn get_full_path(tree: &FsTree, index: FsNodeIndex) {}

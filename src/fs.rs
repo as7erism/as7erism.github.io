@@ -1,9 +1,9 @@
-use std::{collections::HashMap, marker::PhantomData, mem, rc::Rc};
+use std::{collections::HashMap, rc::Rc};
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use web_sys::js_sys::eval;
 use yew::Html;
-use web_sys::{js_sys::eval, wasm_bindgen::prelude::*};
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 struct Directory {
@@ -96,28 +96,44 @@ pub enum FsError {}
 
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct FsTree {
-    node_table: Vec<FsNode>,
+    node_table: Vec<Option<FsNode>>,
     vacancies: Vec<usize>,
 }
 
 impl FsTree {
     pub fn new() -> Self {
         FsTree {
-            node_table: vec![FsNode::Directory(Directory::default())],
+            node_table: vec![Some(FsNode::Directory(Directory::default()))],
             vacancies: Vec::new(),
         }
     }
 
-    fn get_node(&self, index: FsNodeIndex) -> &FsNode {
-        &self.node_table[index.0]
+    fn get_node(&self, index: FsNodeIndex) -> Option<&FsNode> {
+        self.node_table[index.0].as_ref()
     }
 
-    fn get_node_mut(&mut self, index: FsNodeIndex) -> &mut FsNode {
-        &mut self.node_table[index.0]
+    fn get_node_mut(&mut self, index: FsNodeIndex) -> Option<&mut FsNode> {
+        self.node_table[index.0].as_mut()
     }
 
     pub fn root(&self) -> FsNodeIndex {
         FsNodeIndex(0)
+    }
+
+    pub fn get_entry(
+        &self,
+        name: &str,
+        parent: FsNodeIndex,
+    ) -> Result<Option<FsNodeIndex>, FsError> {
+        let Some(node) = self.get_node(parent) else {
+            unimplemented!();
+        };
+
+        let FsNode::Directory(parent_dir) = node else {
+            unimplemented!();
+        };
+
+        Ok(parent_dir.entries.get(name).cloned())
     }
 
     fn vacate(&mut self, index: FsNodeIndex) {
@@ -138,11 +154,19 @@ impl FsTree {
         unimplemented!();
     }
 
-    pub fn create_directory(&mut self, name: &str, parent: FsNodeIndex) -> Result<FsNodeIndex, FsError> {
+    pub fn create_directory(
+        &mut self,
+        name: &str,
+        parent: FsNodeIndex,
+    ) -> Result<FsNodeIndex, FsError> {
         let vacancy = self.vacancies.last().cloned();
         let table_len = self.node_table.len();
 
-        let FsNode::Directory(parent_dir) = self.get_node_mut(parent) else {
+        let Some(node) = self.get_node_mut(parent) else {
+            unimplemented!();
+        };
+
+        let FsNode::Directory(parent_dir) = node else {
             unimplemented!();
         };
 
@@ -154,19 +178,15 @@ impl FsTree {
             Some(v) => {
                 let node_index = FsNodeIndex(v);
                 parent_dir.entries.insert(name.into(), node_index);
-                self.node_table[v] = FsNode::Directory(Directory::new(parent, node_index));
+                self.node_table[v] = Some(FsNode::Directory(Directory::new(parent, node_index)));
                 self.vacancies.pop();
                 Ok(node_index)
             }
             None => {
                 let node_index = FsNodeIndex(table_len);
-                parent_dir
-                    .entries
-                    .insert(name.into(), node_index);
-                self.node_table.push(FsNode::Directory(Directory::new(
-                    parent,
-                    node_index,
-                )));
+                parent_dir.entries.insert(name.into(), node_index);
+                self.node_table
+                    .push(Some(FsNode::Directory(Directory::new(parent, node_index))));
                 Ok(node_index)
             }
         }
@@ -176,7 +196,11 @@ impl FsTree {
         let vacancy = self.vacancies.last().cloned();
         let table_len = self.node_table.len();
 
-        let FsNode::Directory(parent_dir) = self.get_node_mut(parent) else {
+        let Some(node) = self.get_node_mut(parent) else {
+            unimplemented!();
+        };
+
+        let FsNode::Directory(parent_dir) = node else {
             unimplemented!();
         };
 
@@ -188,23 +212,25 @@ impl FsTree {
             Some(v) => {
                 let node_index = FsNodeIndex(v);
                 parent_dir.entries.insert(name.into(), node_index);
-                self.node_table[v] = FsNode::File(File::new());
+                self.node_table[v] = Some(FsNode::File(File::new()));
                 self.vacancies.pop();
                 Ok(node_index)
             }
             None => {
                 let node_index = FsNodeIndex(table_len);
-                parent_dir
-                    .entries
-                    .insert(name.into(), node_index);
-                self.node_table.push(FsNode::File(File::new()));
+                parent_dir.entries.insert(name.into(), node_index);
+                self.node_table.push(Some(FsNode::File(File::new())));
                 Ok(node_index)
             }
         }
     }
 
     pub fn delete(&mut self, name: &str, parent: FsNodeIndex) -> Result<(), FsError> {
-        let FsNode::Directory(parent_dir) = self.get_node_mut(parent) else {
+        let Some(node) = self.get_node_mut(parent) else {
+            unimplemented!();
+        };
+
+        let FsNode::Directory(parent_dir) = node else {
             unimplemented!();
         };
 
@@ -218,7 +244,11 @@ impl FsTree {
     }
 
     pub fn delete_recursive(&mut self, name: &str, parent: FsNodeIndex) -> Result<(), FsError> {
-        let FsNode::Directory(parent_dir) = self.get_node(parent) else {
+        let Some(node) = self.get_node_mut(parent) else {
+            unimplemented!();
+        };
+
+        let FsNode::Directory(parent_dir) = node else {
             unimplemented!();
         };
 
@@ -226,14 +256,14 @@ impl FsTree {
             unimplemented!();
         };
 
-        if let FsNode::Directory(d) = self.get_node(removal_index) {
+        if let FsNode::Directory(d) = self.get_node(removal_index).unwrap() {
             let names = d.entries.keys().map(Rc::clone).collect::<Vec<_>>();
             for name in names {
                 self.delete_recursive(&name, removal_index).expect("a");
             }
         }
 
-        let FsNode::Directory(parent_dir) = self.get_node_mut(parent) else {
+        let FsNode::Directory(parent_dir) = self.get_node_mut(parent).unwrap() else {
             panic!();
         };
         parent_dir.entries.remove(name).expect("a");
