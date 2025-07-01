@@ -1,7 +1,7 @@
 #![feature(binary_heap_into_iter_sorted)]
 use std::rc::Rc;
 
-use yew::Html;
+use yew::{Html, UseStateHandle};
 
 pub mod components;
 pub mod fs;
@@ -10,8 +10,45 @@ pub mod programs;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct StatusCode(pub u32);
 
+impl StatusCode {
+    fn is_success(&self) -> bool {
+        self.0 == 0
+    }
+
+    fn is_failure(&self) -> bool {
+        !self.is_success()
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct ExecutionRecord {
-    pub command: Rc<str>,
+    last_status: StatusCode,
+    cwd_display: Rc<str>,
+    command: Rc<str>,
     pub output: Html,
 }
+
+impl ExecutionRecord {
+    pub fn new(last_status: StatusCode, cwd_display: &str, command: &str, output: Html) -> Self {
+        Self {
+            last_status,
+            cwd_display: cwd_display.into(),
+            command: command.into(),
+            output,
+        }
+    }
+
+    pub fn last_status(&self) -> StatusCode {
+        self.last_status
+    }
+
+    pub fn cwd_display(&self) -> Rc<str> {
+        self.cwd_display.clone()
+    }
+
+    pub fn command(&self) -> Rc<str> {
+        self.command.clone()
+    }
+}
+
+pub type HistoryHandle = UseStateHandle<Vec<ExecutionRecord>>;

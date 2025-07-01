@@ -7,13 +7,13 @@ use yew::Html;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 struct Directory {
-    entries: HashMap<Rc<str>, FsNodeIndex>,
+    entries: HashMap<Rc<str>, FsIndex>,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 struct DirEntry {
     name: Rc<str>,
-    index: FsNodeIndex,
+    index: FsIndex,
 }
 
 #[derive(Default, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -26,7 +26,7 @@ impl Directory {
         Default::default()
     }
 
-    pub fn new(parent: FsNodeIndex, this: FsNodeIndex) -> Self {
+    pub fn new(parent: FsIndex, this: FsIndex) -> Self {
         Self {
             entries: HashMap::from([("..".into(), parent), (".".into(), this)]),
         }
@@ -47,7 +47,7 @@ impl Directory {
 impl Default for Directory {
     fn default() -> Self {
         Self {
-            entries: HashMap::from([("..".into(), FsNodeIndex(0)), (".".into(), FsNodeIndex(0))]),
+            entries: HashMap::from([("..".into(), FsIndex(0)), (".".into(), FsIndex(0))]),
         }
     }
 }
@@ -89,7 +89,7 @@ enum FsNode {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Default, Debug, Serialize, Deserialize)]
-pub struct FsNodeIndex(usize);
+pub struct FsIndex(usize);
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Error, Serialize, Deserialize)]
 pub enum FsError {}
@@ -108,23 +108,23 @@ impl FsTree {
         }
     }
 
-    fn get_node(&self, index: FsNodeIndex) -> Option<&FsNode> {
+    fn get_node(&self, index: FsIndex) -> Option<&FsNode> {
         self.node_table[index.0].as_ref()
     }
 
-    fn get_node_mut(&mut self, index: FsNodeIndex) -> Option<&mut FsNode> {
+    fn get_node_mut(&mut self, index: FsIndex) -> Option<&mut FsNode> {
         self.node_table[index.0].as_mut()
     }
 
-    pub fn root(&self) -> FsNodeIndex {
-        FsNodeIndex(0)
+    pub fn root(&self) -> FsIndex {
+        FsIndex(0)
     }
 
     pub fn get_entry(
         &self,
         name: &str,
-        parent: FsNodeIndex,
-    ) -> Result<Option<FsNodeIndex>, FsError> {
+        parent: FsIndex,
+    ) -> Result<Option<FsIndex>, FsError> {
         let Some(node) = self.get_node(parent) else {
             unimplemented!();
         };
@@ -136,20 +136,20 @@ impl FsTree {
         Ok(parent_dir.entries.get(name).cloned())
     }
 
-    fn vacate(&mut self, index: FsNodeIndex) {
+    fn vacate(&mut self, index: FsIndex) {
         self.vacancies.push(index.0)
     }
 
-    fn is_child(&self, maybe_child: FsNodeIndex, maybe_parent: FsNodeIndex) -> bool {
+    fn is_child(&self, maybe_child: FsIndex, maybe_parent: FsIndex) -> bool {
         unimplemented!()
     }
 
     pub fn move_entry(
         &mut self,
         old_name: &str,
-        old_parent: FsNodeIndex,
+        old_parent: FsIndex,
         new_name: &str,
-        new_parent: FsNodeIndex,
+        new_parent: FsIndex,
     ) -> Result<(), FsError> {
         unimplemented!();
     }
@@ -157,8 +157,8 @@ impl FsTree {
     pub fn create_directory(
         &mut self,
         name: &str,
-        parent: FsNodeIndex,
-    ) -> Result<FsNodeIndex, FsError> {
+        parent: FsIndex,
+    ) -> Result<FsIndex, FsError> {
         let vacancy = self.vacancies.last().cloned();
         let table_len = self.node_table.len();
 
@@ -176,14 +176,14 @@ impl FsTree {
 
         match vacancy {
             Some(v) => {
-                let node_index = FsNodeIndex(v);
+                let node_index = FsIndex(v);
                 parent_dir.entries.insert(name.into(), node_index);
                 self.node_table[v] = Some(FsNode::Directory(Directory::new(parent, node_index)));
                 self.vacancies.pop();
                 Ok(node_index)
             }
             None => {
-                let node_index = FsNodeIndex(table_len);
+                let node_index = FsIndex(table_len);
                 parent_dir.entries.insert(name.into(), node_index);
                 self.node_table
                     .push(Some(FsNode::Directory(Directory::new(parent, node_index))));
@@ -192,7 +192,7 @@ impl FsTree {
         }
     }
 
-    pub fn create_file(&mut self, name: &str, parent: FsNodeIndex) -> Result<FsNodeIndex, FsError> {
+    pub fn create_file(&mut self, name: &str, parent: FsIndex) -> Result<FsIndex, FsError> {
         let vacancy = self.vacancies.last().cloned();
         let table_len = self.node_table.len();
 
@@ -210,14 +210,14 @@ impl FsTree {
 
         match vacancy {
             Some(v) => {
-                let node_index = FsNodeIndex(v);
+                let node_index = FsIndex(v);
                 parent_dir.entries.insert(name.into(), node_index);
                 self.node_table[v] = Some(FsNode::File(File::new()));
                 self.vacancies.pop();
                 Ok(node_index)
             }
             None => {
-                let node_index = FsNodeIndex(table_len);
+                let node_index = FsIndex(table_len);
                 parent_dir.entries.insert(name.into(), node_index);
                 self.node_table.push(Some(FsNode::File(File::new())));
                 Ok(node_index)
@@ -225,7 +225,7 @@ impl FsTree {
         }
     }
 
-    pub fn delete(&mut self, name: &str, parent: FsNodeIndex) -> Result<(), FsError> {
+    pub fn delete(&mut self, name: &str, parent: FsIndex) -> Result<(), FsError> {
         let Some(node) = self.get_node_mut(parent) else {
             unimplemented!();
         };
@@ -243,7 +243,7 @@ impl FsTree {
         Ok(())
     }
 
-    pub fn delete_recursive(&mut self, name: &str, parent: FsNodeIndex) -> Result<(), FsError> {
+    pub fn delete_recursive(&mut self, name: &str, parent: FsIndex) -> Result<(), FsError> {
         let Some(node) = self.get_node_mut(parent) else {
             unimplemented!();
         };
