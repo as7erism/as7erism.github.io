@@ -52,3 +52,13 @@ impl ExecutionRecord {
 }
 
 pub type HistoryHandle = UseStateHandle<Vec<ExecutionRecord>>;
+
+pub fn tokenize(input: &str) -> Vec<&str> {
+    // TODO support quotes?
+    input.split_whitespace().collect()
+}
+
+pub fn tab_complete(input: &str) -> String {
+    // TODO
+    format!("{input}, tab completed!")
+}
