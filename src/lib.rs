@@ -3,6 +3,8 @@ use std::rc::Rc;
 
 use yew::{Html, UseStateHandle};
 
+use crate::{fs::{FsError, FsIndex, FsTree}, programs::{Program, PROGRAMS}};
+
 pub mod components;
 pub mod fs;
 pub mod programs;
@@ -61,4 +63,9 @@ pub fn tokenize(input: &str) -> Vec<&str> {
 pub fn tab_complete(input: &str) -> String {
     // TODO
     format!("{input}, tab completed!")
+}
+
+pub fn get_program(name: &str, cwd: &str, fs_tree: &FsTree) -> Result<Option<&'static Program>, FsError> {
+    // TODO
+    Ok(PROGRAMS.get("help"))
 }

@@ -1,13 +1,14 @@
 use std::{cmp::Reverse, collections::BinaryHeap, rc::Rc};
 
 use phf::phf_map;
+use web_sys::console;
 use yew::html;
 
 use crate::{
     fs::{FsIndex, FsTree}, HistoryHandle, StatusCode
 };
 
-pub type Program = fn(&[&str], &mut FsIndex, &mut FsTree, HistoryHandle) -> StatusCode;
+pub type Program = fn(&[&str], &mut String, &mut FsTree, HistoryHandle) -> StatusCode;
 
 pub const PROGRAMS: phf::Map<
     &'static str, Program
@@ -18,7 +19,7 @@ pub const PROGRAMS: phf::Map<
 
 fn cd(
     args: &[&str],
-    cwd: &mut FsIndex,
+    cwd: &mut String,
     fs_tree: &mut FsTree,
     _history: HistoryHandle,
 ) -> StatusCode {
@@ -27,11 +28,12 @@ fn cd(
 
 fn help(
     _args: &[&str],
-    _cwd: &mut FsIndex,
+    _cwd: &mut String,
     _fs_tree: &mut FsTree,
     history: HistoryHandle,
 ) -> StatusCode {
     let mut history_vec = history.to_vec();
+    console::log_1(&format!("{}", history_vec.len()).into());
     history_vec.last_mut().unwrap().output = html! {
         <>
             {
@@ -40,7 +42,7 @@ fn help(
                     .map(|k| Reverse(*k))
                     .collect::<BinaryHeap<_>>()
                     .into_iter_sorted()
-                    .map(|r| r.0)
+                    .map(|r| html! {<span>{format!("{} ", r.0)}</span>})
             }
         </>
     };
