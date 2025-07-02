@@ -1,40 +1,41 @@
 use std::{cmp::Reverse, collections::BinaryHeap, rc::Rc};
 
 use phf::phf_map;
+use unix_path::PathBuf;
 use web_sys::console;
 use yew::html;
 
 use crate::{
-    fs::{FsIndex, FsTree}, HistoryHandle, StatusCode
+    ExecutionRecord, HistoryHandle, StatusCode,
+    fs::{FsIndex, FsTree},
 };
 
-pub type Program = fn(&[&str], &mut String, &mut FsTree, HistoryHandle) -> StatusCode;
+pub type Program =
+    fn(&[String], &mut PathBuf, &mut FsTree, &mut Vec<ExecutionRecord>) -> StatusCode;
 
-pub const PROGRAMS: phf::Map<
-    &'static str, Program
-> = phf_map! {
+pub const PROGRAMS: phf::Map<&'static str, Program> = phf_map! {
     "cd" => cd,
+    "clear" => clear,
+    "echo" => echo,
     "help" => help,
 };
 
 fn cd(
-    args: &[&str],
-    cwd: &mut String,
+    args: &[String],
+    cwd: &mut PathBuf,
     fs_tree: &mut FsTree,
-    _history: HistoryHandle,
+    _history: &mut Vec<ExecutionRecord>,
 ) -> StatusCode {
-    StatusCode(0)
+    StatusCode(1)
 }
 
 fn help(
-    _args: &[&str],
-    _cwd: &mut String,
+    _args: &[String],
+    _cwd: &mut PathBuf,
     _fs_tree: &mut FsTree,
-    history: HistoryHandle,
+    history: &mut Vec<ExecutionRecord>,
 ) -> StatusCode {
-    let mut history_vec = history.to_vec();
-    console::log_1(&format!("{}", history_vec.len()).into());
-    history_vec.last_mut().unwrap().output = html! {
+    history.last_mut().unwrap().output = html! {
         <>
             {
                 for PROGRAMS
@@ -47,7 +48,27 @@ fn help(
         </>
     };
 
-    history.set(history_vec);
+    StatusCode(0)
+}
 
+fn echo(
+    args: &[String],
+    _cwd: &mut PathBuf,
+    _fs_tree: &mut FsTree,
+    history: &mut Vec<ExecutionRecord>,
+) -> StatusCode {
+    history.last_mut().unwrap().output = html! {
+        <>{ args.join(" ") }</>
+    };
+    StatusCode(0)
+}
+
+fn clear(
+    _args: &[String],
+    _cwd: &mut PathBuf,
+    _fs_tree: &mut FsTree,
+    history: &mut Vec<ExecutionRecord>,
+) -> StatusCode {
+    history.clear();
     StatusCode(0)
 }

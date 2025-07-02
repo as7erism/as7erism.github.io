@@ -1,6 +1,9 @@
-use yew::{classes, function_component, html, AttrValue, Html, Properties, props};
+use yew::{AttrValue, Html, Properties, classes, function_component, html, props};
 
-use crate::{fs::{FsIndex, FsTree}, StatusCode};
+use crate::{
+    StatusCode,
+    fs::{FsIndex, FsTree},
+};
 
 #[derive(Properties, PartialEq)]
 pub struct PromptProps {

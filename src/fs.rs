@@ -120,11 +120,7 @@ impl FsTree {
         FsIndex(0)
     }
 
-    pub fn get_entry(
-        &self,
-        name: &str,
-        parent: FsIndex,
-    ) -> Result<Option<FsIndex>, FsError> {
+    pub fn get_entry(&self, name: &str, parent: FsIndex) -> Result<Option<FsIndex>, FsError> {
         let Some(node) = self.get_node(parent) else {
             unimplemented!();
         };
@@ -154,11 +150,7 @@ impl FsTree {
         unimplemented!();
     }
 
-    pub fn create_directory(
-        &mut self,
-        name: &str,
-        parent: FsIndex,
-    ) -> Result<FsIndex, FsError> {
+    pub fn create_directory(&mut self, name: &str, parent: FsIndex) -> Result<FsIndex, FsError> {
         let vacancy = self.vacancies.last().cloned();
         let table_len = self.node_table.len();
 
@@ -270,5 +262,15 @@ impl FsTree {
         self.vacate(removal_index);
 
         Ok(())
+    }
+}
+
+impl Default for FsTree {
+    fn default() -> Self {
+        let mut fs_tree = FsTree::new();
+        let mut current = fs_tree.create_directory("home", fs_tree.root()).unwrap();
+        current = fs_tree.create_directory("user", current).unwrap();
+
+        fs_tree
     }
 }
