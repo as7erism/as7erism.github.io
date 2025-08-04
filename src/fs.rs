@@ -2,6 +2,7 @@ use std::{collections::HashMap, rc::Rc};
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use unix_path::Path;
 use web_sys::js_sys::eval;
 use yew::Html;
 
@@ -11,9 +12,19 @@ struct Directory {
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
-struct DirEntry {
+pub struct DirEntry {
     name: Rc<str>,
     index: FsIndex,
+}
+
+impl DirEntry {
+    pub fn name(&self) -> Rc<str> {
+        Rc::clone(&self.name)
+    }
+
+    pub fn index(&self) -> FsIndex {
+        self.index
+    }
 }
 
 #[derive(Default, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -132,12 +143,33 @@ impl FsTree {
         Ok(parent_dir.entries.get(name).cloned())
     }
 
-    fn vacate(&mut self, index: FsIndex) {
-        self.vacancies.push(index.0)
+    pub fn iter_dir(&self, index: FsIndex) -> Result<impl Iterator<Item = DirEntry>, FsError> {
+        match self.get_node(index) {
+            Some(FsNode::Directory(dir)) => Ok(dir.children()),
+            Some(FsNode::File(file)) => unimplemented!(),
+            None => unimplemented!(),
+        }
     }
 
-    fn is_child(&self, maybe_child: FsIndex, maybe_parent: FsIndex) -> bool {
-        unimplemented!()
+    pub fn lookup_path(&self, path: &Path) -> Result<Option<FsIndex>, FsError> {
+        if path.is_relative() {
+            unimplemented!();
+        }
+
+        let mut current = self.root();
+        for component in path.iter().skip(1) {
+            match self.get_entry(component.to_str().unwrap(), current) {
+                Ok(Some(next)) => current = next,
+                Ok(None) => return Ok(None),
+                Err(_) => unimplemented!(),
+            }
+        }
+
+        Ok(Some(current))
+    }
+
+    fn vacate(&mut self, index: FsIndex) {
+        self.vacancies.push(index.0)
     }
 
     pub fn move_entry(

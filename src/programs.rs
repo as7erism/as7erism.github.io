@@ -2,8 +2,9 @@ use std::{cmp::Reverse, collections::BinaryHeap, rc::Rc};
 
 use phf::phf_map;
 use unix_path::PathBuf;
+use wasm_bindgen::JsValue;
 use web_sys::console;
-use yew::html;
+use yew::{html, Html};
 
 use crate::{
     ExecutionRecord, HistoryHandle, StatusCode,
@@ -18,7 +19,32 @@ pub const PROGRAMS: phf::Map<&'static str, Program> = phf_map! {
     "clear" => clear,
     "echo" => echo,
     "help" => help,
+    "ls" => ls,
 };
+
+fn ls(
+    args: &[String],
+    cwd: &mut PathBuf,
+    fs_tree: &mut FsTree,
+    history: &mut Vec<ExecutionRecord>,
+) -> StatusCode {
+    console::log_1(&JsValue::from_str(cwd.to_str().unwrap()));
+    write_output(history, html! {
+        <>
+            {
+                for fs_tree
+                    .iter_dir(fs_tree.lookup_path(cwd).unwrap().unwrap())
+                    .unwrap()
+                    .map(|entry| Reverse(entry.name()))
+                    .collect::<BinaryHeap<_>>()
+                    .into_iter_sorted()
+                    .map(|r| html! {<span>{format!("{} ", r.0)}</span>})
+            }
+        </>
+    });
+
+    StatusCode(0)
+}
 
 fn cd(
     args: &[String],
@@ -71,4 +97,8 @@ fn clear(
 ) -> StatusCode {
     history.clear();
     StatusCode(0)
+}
+
+fn write_output(history: &mut Vec<ExecutionRecord>, output: Html) {
+    history.last_mut().unwrap().output = output;
 }
