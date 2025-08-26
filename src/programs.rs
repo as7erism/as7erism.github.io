@@ -4,15 +4,13 @@ use phf::phf_map;
 use unix_path::PathBuf;
 use wasm_bindgen::JsValue;
 use web_sys::console;
-use yew::{html, Html};
+use yew::{Html, html};
 
 use crate::{
-    ExecutionRecord, HistoryHandle, StatusCode,
-    fs::{FsIndex, FsTree},
+    canonicalize, fs::{FsIndex, FsTree}, ExecutionRecord, History, HistoryHandle, StatusCode
 };
 
-pub type Program =
-    fn(&[String], &mut PathBuf, &mut FsTree, &mut Vec<ExecutionRecord>) -> StatusCode;
+pub type Program = fn(&[String], &mut PathBuf, &mut FsTree, &mut History) -> StatusCode;
 
 pub const PROGRAMS: phf::Map<&'static str, Program> = phf_map! {
     "cd" => cd,
@@ -26,79 +24,115 @@ fn ls(
     args: &[String],
     cwd: &mut PathBuf,
     fs_tree: &mut FsTree,
-    history: &mut Vec<ExecutionRecord>,
+    history: &mut History,
 ) -> StatusCode {
-    console::log_1(&JsValue::from_str(cwd.to_str().unwrap()));
-    write_output(history, html! {
-        <>
-            {
-                for fs_tree
-                    .iter_dir(fs_tree.lookup_path(cwd).unwrap().unwrap())
-                    .unwrap()
-                    .map(|entry| Reverse(entry.name()))
-                    .collect::<BinaryHeap<_>>()
-                    .into_iter_sorted()
-                    .map(|r| html! {<span>{format!("{} ", r.0)}</span>})
-            }
-        </>
-    });
-
-    StatusCode(0)
+    if history
+        .write(html! {
+            <>
+                {
+                    for fs_tree
+                        .iter_dir(fs_tree.lookup_path(cwd).unwrap().unwrap())
+                        .unwrap()
+                        .map(|entry| Reverse(entry.name()))
+                        .collect::<BinaryHeap<_>>()
+                        .into_iter_sorted()
+                        .map(|r| html! {<span>{format!("{} ", r.0)}</span>})
+                }
+            </>
+        })
+        .is_ok()
+    {
+        StatusCode(0)
+    } else {
+        // TODO statuses
+        StatusCode(1)
+    }
 }
 
 fn cd(
     args: &[String],
     cwd: &mut PathBuf,
     fs_tree: &mut FsTree,
-    _history: &mut Vec<ExecutionRecord>,
+    _history: &mut History,
 ) -> StatusCode {
-    StatusCode(1)
+    if args.len() < 2 {
+        unimplemented!()
+    }
+
+    let target_path = if args[1].starts_with('/') {
+        PathBuf::from(&args[1])
+    } else {
+        let mut target_path = cwd.clone();
+        target_path.push(&args[1]);
+        target_path
+    };
+
+    match fs_tree.lookup_path(&target_path) {
+        Ok(Some(index)) => {
+            if fs_tree.is_directory(index).unwrap() {
+                *cwd = canonicalize(&target_path, fs_tree).unwrap();
+                StatusCode(0)
+            } else {
+                unimplemented!()
+            }
+        },
+        Ok(None) => unimplemented!(),
+        Err(_) => unimplemented!(),
+    }
 }
 
 fn help(
     _args: &[String],
     _cwd: &mut PathBuf,
     _fs_tree: &mut FsTree,
-    history: &mut Vec<ExecutionRecord>,
+    history: &mut History,
 ) -> StatusCode {
-    history.last_mut().unwrap().output = html! {
-        <>
-            {
-                for PROGRAMS
-                    .keys()
-                    .map(|k| Reverse(*k))
-                    .collect::<BinaryHeap<_>>()
-                    .into_iter_sorted()
-                    .map(|r| html! {<span>{format!("{} ", r.0)}</span>})
-            }
-        </>
-    };
-
-    StatusCode(0)
+    if history
+        .write(html! {
+            <>
+                {
+                    for PROGRAMS
+                        .keys()
+                        .map(|k| Reverse(*k))
+                        .collect::<BinaryHeap<_>>()
+                        .into_iter_sorted()
+                        .map(|r| html! {<span>{format!("{} ", r.0)}</span>})
+                }
+            </>
+        })
+        .is_ok()
+    {
+        StatusCode(0)
+    } else {
+        // TODO statuses
+        StatusCode(1)
+    }
 }
 
 fn echo(
     args: &[String],
     _cwd: &mut PathBuf,
     _fs_tree: &mut FsTree,
-    history: &mut Vec<ExecutionRecord>,
+    history: &mut History,
 ) -> StatusCode {
-    history.last_mut().unwrap().output = html! {
-        <>{ args.join(" ") }</>
-    };
-    StatusCode(0)
+    if history
+        .write(html! {
+            <>{ args[1..].join(" ") }</>
+        })
+        .is_ok()
+    {
+        StatusCode(0)
+    } else {
+        StatusCode(1)
+    }
 }
 
 fn clear(
     _args: &[String],
     _cwd: &mut PathBuf,
     _fs_tree: &mut FsTree,
-    history: &mut Vec<ExecutionRecord>,
+    history: &mut History,
 ) -> StatusCode {
     history.clear();
     StatusCode(0)
-}
-
-fn write_output(history: &mut Vec<ExecutionRecord>, output: Html) {
-    history.last_mut().unwrap().output = output;
 }

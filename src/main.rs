@@ -1,5 +1,6 @@
 use site::{
-    components::Prompt, display_path, fs::FsTree, submit_command, tab_complete, ExecutionRecord, StatusCode, HOME
+    ExecutionRecord, HOME, History, StatusCode, components::Prompt, display_path, fs::FsTree,
+    init_fs, submit_command, tab_complete,
 };
 use unix_path::{Path, PathBuf};
 use wasm_bindgen::JsCast;
@@ -8,17 +9,17 @@ use yew::prelude::*;
 
 #[function_component]
 fn Ash() -> Html {
-    let fs_tree = use_mut_ref(FsTree::new);
+    let fs_tree = use_mut_ref(init_fs);
 
     let cwd_handle = use_state(|| PathBuf::from(HOME));
     let status_handle = use_state(|| StatusCode(0));
     let history_handle = use_state(|| {
-        vec![ExecutionRecord::new(
+        History(vec![ExecutionRecord::new(
             StatusCode(0),
             &display_path(&cwd_handle),
             "neofetch",
-            html! {<>{"hi"}</>},
-        )]
+            Some(html! {<>{"hi"}</>}),
+        )])
     });
     let input_handle = use_state(String::default);
 
@@ -48,14 +49,15 @@ fn Ash() -> Html {
                     .dyn_into::<HtmlInputElement>()
                     .unwrap()
                     .value();
-                let mut cwd = (*cwd_handle).clone();
-                let mut history = history_handle.to_vec();
 
-                history.push(ExecutionRecord::new(
+                let mut cwd = (*cwd_handle).clone();
+                let mut history = (*history_handle).clone();
+
+                history.0.push(ExecutionRecord::new(
                     *status_handle,
                     &display_path(&cwd),
                     command.as_str(),
-                    html! {<></>},
+                    None
                 ));
 
                 status_handle.set(submit_command(
@@ -64,8 +66,15 @@ fn Ash() -> Html {
                     fs_tree.clone(),
                     &mut history,
                 ));
-                input_handle.set(String::default());
-                cwd_handle.set(cwd);
+
+                // make sure cwd still exists, if not reset to root
+                if fs_tree.borrow().lookup_path(&cwd).is_ok() {
+                    cwd_handle.set(cwd);
+                } else {
+                    cwd_handle.set(PathBuf::from("/"));
+                };
+
+                input_handle.set(String::new());
                 history_handle.set(history);
             }
             _ => (),
@@ -75,14 +84,17 @@ fn Ash() -> Html {
     html! {
         <div>
             {
-                for history_handle.iter().map(|record| {
+                for history_handle.0.iter().map(|record| {
                     html! {
                         <>
                             <Prompt status={record.last_status()} cwd_display={record.cwd_display()} />
                             <span>{record.command()}</span>
                             <br />
-                            {record.output.clone()}
-                            <br />
+                            // as far as i can tell an Rc would not work here
+                            if record.output().is_some() {
+                                {record.output().unwrap().clone()}
+                                <br />
+                            }
                         </>
                     }
                 })

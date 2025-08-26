@@ -10,6 +10,7 @@ serde-wasm-bindgen = "0.6.5"
 shellish_parse = "2.2.0"
 thiserror = "2.0.12"
 unix_path = "1.0.1"
+unix_str = "1.0.0"
 wasm-bindgen = "0.2.100"
 web-sys = "0.3.77"
 yew = { version = "0.21.0", features = ["csr"] }

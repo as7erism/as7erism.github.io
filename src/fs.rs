@@ -2,7 +2,7 @@ use std::{collections::HashMap, rc::Rc};
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use unix_path::Path;
+use unix_path::{Path, PathBuf};
 use web_sys::js_sys::eval;
 use yew::Html;
 
@@ -131,7 +131,7 @@ impl FsTree {
         FsIndex(0)
     }
 
-    pub fn get_entry(&self, name: &str, parent: FsIndex) -> Result<Option<FsIndex>, FsError> {
+    fn get_entry(&self, name: &str, parent: FsIndex) -> Result<Option<FsIndex>, FsError> {
         let Some(node) = self.get_node(parent) else {
             unimplemented!();
         };
@@ -149,6 +149,18 @@ impl FsTree {
             Some(FsNode::File(file)) => unimplemented!(),
             None => unimplemented!(),
         }
+    }
+
+    pub fn is_directory(&self, index: FsIndex) -> Result<bool, FsError> {
+        match self.get_node(index) {
+            Some(FsNode::Directory(_)) => Ok(true),
+            Some(FsNode::File(_)) => Ok(false),
+            None => unimplemented!(),
+        }
+    }
+
+    pub fn is_file(&self, index: FsIndex) -> Result<bool, FsError> {
+        self.is_directory(index).map(|b| !b)
     }
 
     pub fn lookup_path(&self, path: &Path) -> Result<Option<FsIndex>, FsError> {
@@ -302,6 +314,8 @@ impl Default for FsTree {
         let mut fs_tree = FsTree::new();
         let mut current = fs_tree.create_directory("home", fs_tree.root()).unwrap();
         current = fs_tree.create_directory("user", current).unwrap();
+        current = fs_tree.create_directory("projects", current).unwrap();
+        current = fs_tree.create_directory("cs5167", current).unwrap();
 
         fs_tree
     }

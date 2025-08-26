@@ -955,6 +955,7 @@ dependencies = [
  "shellish_parse",
  "thiserror 2.0.12",
  "unix_path",
+ "unix_str",
  "wasm-bindgen",
  "web-sys",
  "yew",
