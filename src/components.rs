@@ -15,8 +15,10 @@ pub struct PromptProps {
 pub fn Prompt(props: &PromptProps) -> Html {
     html! {
         <>
+            {props.cwd_display.clone()}
+            {" "}
             <span class={classes!(if props.status.is_success() {"text-emerald-500"} else {"text-rose-500"})}>{"❁"}</span>
-            {props.cwd_display.clone()}{" "}
+            {" "}
         </>
     }
 }

@@ -90,8 +90,8 @@ fn Ash() -> Html {
                             <Prompt status={record.last_status()} cwd_display={record.cwd_display()} />
                             <span>{record.command()}</span>
                             <br />
-                            // as far as i can tell an Rc would not work here
                             if record.output().is_some() {
+                                // as far as i can tell an Rc would not work here
                                 {record.output().unwrap().clone()}
                                 <br />
                             }
