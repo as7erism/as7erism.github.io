@@ -1,7 +1,7 @@
 use std::{cmp::Reverse, collections::BinaryHeap, rc::Rc};
 
 use phf::phf_map;
-use unix_path::PathBuf;
+use unix_path::{Path, PathBuf};
 use wasm_bindgen::JsValue;
 use web_sys::console;
 use yew::{Html, html};
@@ -31,7 +31,7 @@ fn ls(
             <>
                 {
                     for fs_tree
-                        .iter_dir(fs_tree.lookup_path(cwd).unwrap().unwrap())
+                        .iter_dir(fs_tree.lookup_path(cwd).unwrap())
                         .unwrap()
                         .map(|entry| Reverse(entry.name()))
                         .collect::<BinaryHeap<_>>()
@@ -68,7 +68,7 @@ fn cd(
     };
 
     match fs_tree.lookup_path(&target_path) {
-        Ok(Some(index)) => {
+        Some(index) => {
             if fs_tree.is_directory(index).unwrap() {
                 *cwd = canonicalize(&target_path, fs_tree).unwrap();
                 StatusCode(0)
@@ -76,8 +76,7 @@ fn cd(
                 unimplemented!()
             }
         },
-        Ok(None) => unimplemented!(),
-        Err(_) => unimplemented!(),
+        None => unimplemented!(),
     }
 }
 
@@ -135,4 +134,19 @@ fn clear(
 ) -> StatusCode {
     history.clear();
     StatusCode(0)
+}
+
+pub fn execute_file(
+    args: &[String],
+    cwd: &mut PathBuf,
+    fs_tree: &mut FsTree,
+    history: &mut History,
+) -> StatusCode {
+    let fs_result = if args[0].starts_with('/') {
+        fs_tree.lookup_path(&Path::new(&args[0]))
+    } else {
+        let mut target_path = cwd.clone();
+        target_path.push(&Path::new(&args[0]));
+        fs_tree.lookup_path(&target_path)
+    };
 }

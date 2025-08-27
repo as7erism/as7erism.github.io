@@ -163,21 +163,20 @@ impl FsTree {
         self.is_directory(index).map(|b| !b)
     }
 
-    pub fn lookup_path(&self, path: &Path) -> Result<Option<FsIndex>, FsError> {
+    pub fn lookup_path(&self, path: &Path) -> Option<FsIndex> {
         if path.is_relative() {
             unimplemented!();
         }
 
         let mut current = self.root();
         for component in path.iter().skip(1) {
-            match self.get_entry(component.to_str().unwrap(), current) {
-                Ok(Some(next)) => current = next,
-                Ok(None) => return Ok(None),
-                Err(_) => unimplemented!(),
+            match self.get_entry(component.to_str().unwrap(), current).unwrap() {
+                Some(next) => current = next,
+                None => return None,
             }
         }
 
-        Ok(Some(current))
+        Some(current)
     }
 
     fn vacate(&mut self, index: FsIndex) {

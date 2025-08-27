@@ -68,7 +68,7 @@ fn Ash() -> Html {
                 ));
 
                 // make sure cwd still exists, if not reset to root
-                if fs_tree.borrow().lookup_path(&cwd).is_ok() {
+                if fs_tree.borrow().lookup_path(&cwd).is_some() {
                     cwd_handle.set(cwd);
                 } else {
                     cwd_handle.set(PathBuf::from("/"));
