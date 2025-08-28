@@ -3,8 +3,11 @@ use std::{collections::HashMap, rc::Rc};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use unix_path::{Path, PathBuf};
+use wasm_bindgen::JsValue;
 use web_sys::js_sys::eval;
-use yew::Html;
+use yew::{AttrValue, Html, html};
+
+use crate::StatusCode;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 struct Directory {
@@ -29,7 +32,7 @@ impl DirEntry {
 
 #[derive(Default, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 struct File {
-    contents: String,
+    contents: Rc<str>,
 }
 
 impl Directory {
@@ -75,21 +78,30 @@ impl File {
         Default::default()
     }
 
-    pub fn contents_mut(&mut self) -> &mut String {
-        &mut self.contents
+    pub fn contents(&self) -> Rc<str> {
+        self.contents.clone()
     }
 
-    pub fn contents(&self) -> &str {
-        self.contents.as_str()
+    pub fn write(&mut self, contents: &str) {
+        self.contents = contents.into();
     }
 
-    pub fn execute(&self) -> (Html, u32) {
-        // match eval(self.contents()) {
-        //     Ok(return_value) => {
-        //         let a = serde_wasm_bindgen::from_value::<JsProgramResult>(return_value);
-        //     }
-        // }
-        unimplemented!();
+    pub fn execute(&self) -> (Html, StatusCode) {
+        match eval(&self.contents()) {
+            Ok(output) => output.as_string().map_or(
+                (html!(<>{"invalid program result"}</>), StatusCode(1)),
+                |o| {
+                    (
+                        Html::from_html_unchecked(AttrValue::Rc(o.into())),
+                        StatusCode(0),
+                    )
+                },
+            ),
+            Err(error) => {
+                // TODO robustify this?
+                (html!(<>{"program encountered an error"}</>), StatusCode(1))
+            }
+        }
     }
 }
 
@@ -143,6 +155,30 @@ impl FsTree {
         Ok(parent_dir.entries.get(name).cloned())
     }
 
+    pub fn contents(&self, index: FsIndex) -> Result<Rc<str>, FsError> {
+        match self.get_node(index) {
+            Some(FsNode::Directory(dir)) => unimplemented!(),
+            Some(FsNode::File(file)) => Ok(file.contents()),
+            None => unimplemented!(),
+        }
+    }
+
+    pub fn execute(&self, index: FsIndex) -> Result<(Html, StatusCode), FsError> {
+        match self.get_node(index) {
+            Some(FsNode::Directory(dir)) => unimplemented!(),
+            Some(FsNode::File(file)) => Ok(file.execute()),
+            None => unimplemented!(),
+        }
+    }
+
+    pub fn write(&mut self, index: FsIndex, contents: &str) -> Result<(), FsError> {
+        match self.get_node_mut(index) {
+            Some(FsNode::Directory(dir)) => unimplemented!(),
+            Some(FsNode::File(file)) => Ok(file.write(contents)),
+            None => unimplemented!(),
+        }
+    }
+
     pub fn iter_dir(&self, index: FsIndex) -> Result<impl Iterator<Item = DirEntry>, FsError> {
         match self.get_node(index) {
             Some(FsNode::Directory(dir)) => Ok(dir.children()),
@@ -170,7 +206,10 @@ impl FsTree {
 
         let mut current = self.root();
         for component in path.iter().skip(1) {
-            match self.get_entry(component.to_str().unwrap(), current).unwrap() {
+            match self
+                .get_entry(component.to_str().unwrap(), current)
+                .unwrap()
+            {
                 Some(next) => current = next,
                 None => return None,
             }
@@ -313,6 +352,8 @@ impl Default for FsTree {
         let mut fs_tree = FsTree::new();
         let mut current = fs_tree.create_directory("home", fs_tree.root()).unwrap();
         current = fs_tree.create_directory("user", current).unwrap();
+        let file = fs_tree.create_file("run_me", current).unwrap();
+        fs_tree.write(file, "alert('lol'); 'some output';");
         current = fs_tree.create_directory("projects", current).unwrap();
         current = fs_tree.create_directory("cs5167", current).unwrap();
 

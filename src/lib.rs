@@ -1,8 +1,9 @@
 #![feature(binary_heap_into_iter_sorted)]
 use std::{cell::RefCell, error::Error, ffi::OsStr, rc::Rc};
 
-use unix_str::UnixStr;
+use programs::EXECUTE_FILE;
 use unix_path::{Path, PathBuf};
+use unix_str::UnixStr;
 use web_sys::console;
 use yew::{Html, UseStateHandle};
 
@@ -39,7 +40,12 @@ pub struct ExecutionRecord {
 }
 
 impl ExecutionRecord {
-    pub fn new(last_status: StatusCode, cwd_display: &str, command: &str, output: Option<Html>) -> Self {
+    pub fn new(
+        last_status: StatusCode,
+        cwd_display: &str,
+        command: &str,
+        output: Option<Html>,
+    ) -> Self {
         Self {
             last_status,
             cwd_display: cwd_display.into(),
@@ -93,8 +99,11 @@ pub fn get_program(
     cwd: &PathBuf,
     fs_tree: &FsTree,
 ) -> Result<Option<&'static Program>, FsError> {
-    // TODO
-    Ok(PROGRAMS.get(name))
+    if name.contains('/') {
+        Ok(Some(&EXECUTE_FILE))
+    } else {
+        Ok(PROGRAMS.get(name))
+    }
 }
 
 pub fn submit_command(
@@ -109,6 +118,7 @@ pub fn submit_command(
         } else {
             tokens
         };
+
         let program = match get_program(args[0].as_str(), cwd, &fs_tree.borrow()) {
             Ok(Some(f)) => f,
             Ok(None) => unimplemented!(),
@@ -126,7 +136,10 @@ pub fn display_path(path: &Path) -> Rc<str> {
     let path = path.to_string_lossy();
     (*if path.starts_with(HOME) {
         path.replacen(HOME, "~", 1).into()
-    } else {path}).into()
+    } else {
+        path
+    })
+    .into()
 }
 
 pub fn canonicalize(path: &PathBuf, fs_tree: &FsTree) -> Result<PathBuf, ()> {
@@ -153,8 +166,8 @@ pub fn canonicalize(path: &PathBuf, fs_tree: &FsTree) -> Result<PathBuf, ()> {
                     .find(|entry| entry.name().as_ref() == component.to_str().unwrap())
                     .ok_or(())?
                     .index();
-            },
-            Err(_) => unimplemented!()
+            }
+            Err(_) => unimplemented!(),
         }
     }
 

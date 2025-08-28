@@ -57,7 +57,7 @@ fn Ash() -> Html {
                     *status_handle,
                     &display_path(&cwd),
                     command.as_str(),
-                    None
+                    None,
                 ));
 
                 status_handle.set(submit_command(

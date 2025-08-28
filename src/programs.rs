@@ -4,10 +4,11 @@ use phf::phf_map;
 use unix_path::{Path, PathBuf};
 use wasm_bindgen::JsValue;
 use web_sys::console;
-use yew::{Html, html};
+use yew::{Html, html, classes};
 
 use crate::{
-    canonicalize, fs::{FsIndex, FsTree}, ExecutionRecord, History, HistoryHandle, StatusCode
+    ExecutionRecord, History, HistoryHandle, StatusCode, canonicalize,
+    fs::{FsIndex, FsTree},
 };
 
 pub type Program = fn(&[String], &mut PathBuf, &mut FsTree, &mut History) -> StatusCode;
@@ -18,7 +19,35 @@ pub const PROGRAMS: phf::Map<&'static str, Program> = phf_map! {
     "echo" => echo,
     "help" => help,
     "ls" => ls,
+    "neofetch" => neofetch,
 };
+
+fn neofetch(
+    _args: &[String],
+    _cwd: &mut PathBuf,
+    _fs_tree: &mut FsTree,
+    history: &mut History,
+) -> StatusCode {
+    history.write(html! {
+        <div class={classes!("flex", "wrap-anywhere", "max-w-lg")}>
+            <img src={"static/jirachi.png"} alt={"jirachi!"} class={"self-start"} />
+            <div>
+                {"user@asters-pc"}
+                <br />
+                {"--------------"}
+                <br />
+                {"hi, im aster! i'm a fourth-year computer science student. my particular interests include linux, programming language design, and web dev."}
+                <br /><br />
+                {"welcome to my site! you can navigate it like you would a unix terminal. enter `help` below to get started!"}
+                <br />
+                {"hint: use the -h flag to get more details about a command: `cd -h`"}
+
+                
+            </div>
+        </div>
+    });
+    StatusCode(0)
+}
 
 fn ls(
     args: &[String],
@@ -75,7 +104,7 @@ fn cd(
             } else {
                 unimplemented!()
             }
-        },
+        }
         None => unimplemented!(),
     }
 }
@@ -136,17 +165,25 @@ fn clear(
     StatusCode(0)
 }
 
-pub fn execute_file(
+pub static EXECUTE_FILE: Program = |
     args: &[String],
     cwd: &mut PathBuf,
     fs_tree: &mut FsTree,
     history: &mut History,
-) -> StatusCode {
-    let fs_result = if args[0].starts_with('/') {
+| {
+    match if args[0].starts_with('/') {
         fs_tree.lookup_path(&Path::new(&args[0]))
     } else {
         let mut target_path = cwd.clone();
         target_path.push(&Path::new(&args[0]));
         fs_tree.lookup_path(&target_path)
-    };
-}
+    } {
+        Some(index) => {
+            fs_tree.execute(index).map_or_else(|_| unimplemented!(), |(output, result)| {
+                history.write(output).unwrap();
+                result
+            })
+        },
+        None => unimplemented!(),
+    }
+};
