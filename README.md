@@ -1,4 +1,4 @@
-# asterism.sh
+# [asterism.sh](https://asterism.sh/)
 
 my personal website, featuring Unix terminal-style navigation. written in Rust via [Yew](https://yew.rs/) and WebAssembly!
 
@@ -11,7 +11,7 @@ ordered by priority/likelihood of implementation:
 - [x] "executable" files
 - [ ] personal project documentation
 - [ ] mutable filesystem
-    - [ ] persistent filesystem via localstorage
+    - [ ] persistent filesystem via localStorage
 - [ ] text editor
 - [ ] JS bindings for "standard library," accessible through user programs
 
