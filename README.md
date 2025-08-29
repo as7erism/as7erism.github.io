@@ -9,6 +9,7 @@ ordered by priority/likelihood of implementation:
 - [x] personal introduction
 - [x] Unix terminal-like navigation
 - [x] "executable" files
+- [ ] better 404 fallback
 - [ ] personal project documentation
 - [ ] mutable filesystem
     - [ ] persistent filesystem via localStorage
