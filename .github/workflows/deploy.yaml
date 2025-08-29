@@ -28,9 +28,12 @@ jobs:
         with:
           # Optional version of trunk to install(eg. 'v0.16.0', 'latest')
           version: "latest"
+      - name: Install tailwind
+        run: npm install tailwindcss @tailwindcss/cli
+      - name: Install Rust nightly
+        run: rustup toolchain install nightly
       - name: Add WASM build target
-        run: |
-          rustup target add wasm32-unknown-unknown
+        run: rustup target add wasm32-unknown-unknown
       - name: Run trunk build
         run: trunk build --release
 
