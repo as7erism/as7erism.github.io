@@ -5,7 +5,7 @@ use programs::EXECUTE_FILE;
 use unix_path::{Path, PathBuf};
 use unix_str::UnixStr;
 use web_sys::console;
-use yew::{Html, UseStateHandle};
+use yew::{html, Html, UseStateHandle};
 
 use crate::{
     fs::{FsError, FsIndex, FsTree},
@@ -91,18 +91,19 @@ pub type HistoryHandle = UseStateHandle<History>;
 
 pub fn tab_complete(input: &str) -> String {
     // TODO
-    format!("{input}, tab completed!")
+    // format!("{input}, tab completed!")
+    input.into()
 }
 
 pub fn get_program(
     name: &str,
     cwd: &PathBuf,
     fs_tree: &FsTree,
-) -> Result<Option<&'static Program>, FsError> {
+) -> Option<&'static Program> {
     if name.contains('/') {
-        Ok(Some(&EXECUTE_FILE))
+        Some(&EXECUTE_FILE)
     } else {
-        Ok(PROGRAMS.get(name))
+        PROGRAMS.get(name)
     }
 }
 
@@ -120,9 +121,11 @@ pub fn submit_command(
         };
 
         let program = match get_program(args[0].as_str(), cwd, &fs_tree.borrow()) {
-            Ok(Some(f)) => f,
-            Ok(None) => unimplemented!(),
-            Err(e) => unimplemented!(),
+            Some(f) => f,
+            None => {
+                history.write(html! {<>{format!("leash: command not found: {}", args[0])}</>});
+                return StatusCode(1);
+            }
         };
 
         program(&args, cwd, &mut fs_tree.borrow_mut(), history)

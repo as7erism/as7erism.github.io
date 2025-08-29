@@ -86,6 +86,7 @@ impl File {
         self.contents = contents.into();
     }
 
+    // TODO this should return an option
     pub fn execute(&self) -> (Html, StatusCode) {
         match eval(&self.contents()) {
             Ok(output) => output.as_string().map_or(
@@ -352,10 +353,6 @@ impl Default for FsTree {
         let mut fs_tree = FsTree::new();
         let mut current = fs_tree.create_directory("home", fs_tree.root()).unwrap();
         current = fs_tree.create_directory("user", current).unwrap();
-        let file = fs_tree.create_file("run_me", current).unwrap();
-        fs_tree.write(file, "alert('lol'); 'some output';");
-        current = fs_tree.create_directory("projects", current).unwrap();
-        current = fs_tree.create_directory("cs5167", current).unwrap();
 
         fs_tree
     }

@@ -7,8 +7,7 @@ use web_sys::console;
 use yew::{Html, html, classes};
 
 use crate::{
-    ExecutionRecord, History, HistoryHandle, StatusCode, canonicalize,
-    fs::{FsIndex, FsTree},
+    canonicalize, components::Fastfetch, fs::{FsIndex, FsTree}, ExecutionRecord, History, HistoryHandle, StatusCode
 };
 
 pub type Program = fn(&[String], &mut PathBuf, &mut FsTree, &mut History) -> StatusCode;
@@ -19,32 +18,17 @@ pub const PROGRAMS: phf::Map<&'static str, Program> = phf_map! {
     "echo" => echo,
     "help" => help,
     "ls" => ls,
-    "neofetch" => neofetch,
+    "fastfetch" => fastfetch,
 };
 
-fn neofetch(
+fn fastfetch(
     _args: &[String],
     _cwd: &mut PathBuf,
     _fs_tree: &mut FsTree,
     history: &mut History,
 ) -> StatusCode {
     history.write(html! {
-        <div class={classes!("flex", "wrap-anywhere", "max-w-lg")}>
-            <img src={"static/jirachi.png"} alt={"jirachi!"} class={"self-start"} />
-            <div>
-                {"user@asters-pc"}
-                <br />
-                {"--------------"}
-                <br />
-                {"hi, im aster! i'm a fourth-year computer science student. my particular interests include linux, programming language design, and web dev."}
-                <br /><br />
-                {"welcome to my site! you can navigate it like you would a unix terminal. enter `help` below to get started!"}
-                <br />
-                {"hint: use the -h flag to get more details about a command: `cd -h`"}
-
-                
-            </div>
-        </div>
+        <><Fastfetch /></>
     });
     StatusCode(0)
 }
@@ -184,6 +168,9 @@ pub static EXECUTE_FILE: Program = |
                 result
             })
         },
-        None => unimplemented!(),
+        None => {
+            history.write(html! {<>{format!("leash: no such file or directory: {}", args[0])}</>});
+            StatusCode(1)
+        }
     }
 };

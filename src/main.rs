@@ -1,6 +1,5 @@
 use site::{
-    ExecutionRecord, HOME, History, StatusCode, components::Prompt, display_path, fs::FsTree,
-    init_fs, submit_command, tab_complete,
+    components::{Fastfetch, Prompt}, display_path, fs::FsTree, init_fs, submit_command, tab_complete, ExecutionRecord, History, StatusCode, HOME
 };
 use unix_path::{Path, PathBuf};
 use wasm_bindgen::JsCast;
@@ -17,8 +16,8 @@ fn Ash() -> Html {
         History(vec![ExecutionRecord::new(
             StatusCode(0),
             &display_path(&cwd_handle),
-            "neofetch",
-            Some(html! {<>{"hi"}</>}),
+            "fastfetch",
+            Some(html! {<><Fastfetch /></>}),
         )])
     });
     let input_handle = use_state(String::default);
@@ -100,7 +99,7 @@ fn Ash() -> Html {
                 })
             }
             <Prompt status={*status_handle} cwd_display={display_path(&(*cwd_handle).clone())} />
-            <input onkeydown={handle_keydown} value={(*input_handle).clone()} />
+            <input id={"commandInput"} class={classes!("focus:outline-none")} onkeydown={handle_keydown} value={(*input_handle).clone()} />
         </div>
     }
 }
